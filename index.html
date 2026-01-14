@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Portfolio</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <canvas id="particles"></canvas>
+
+  <button id="theme-toggle" aria-label="Toggle theme">
+    <svg class="sun-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+    <svg class="moon-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+    </svg>
+  </button>
+
+  <main id="app">
+    <!-- Home Page -->
+    <section id="page-home" class="page active" data-title="">
+      <div class="page-content home-content">
+        <h1 class="hero-title">Your Name</h1>
+        <p class="hero-subtitle">Developer & Designer</p>
+        <nav class="main-nav">
+          <a href="#/thoughts" class="nav-link">Thoughts</a>
+          <a href="#/projects" class="nav-link">Projects</a>
+          <a href="#/about" class="nav-link">About</a>
+        </nav>
+      </div>
+    </section>
+
+    <!-- Thoughts Page -->
+    <section id="page-thoughts" class="page" data-title="Thoughts">
+      <div class="page-content">
+        <a href="#/" class="back-link">&larr; Back</a>
+        <h1 class="page-header">Thoughts</h1>
+        <div class="thoughts-list">
+          <article class="thought-card">
+            <time>January 2026</time>
+            <h2>On Building Things</h2>
+            <p>Some thoughts on the craft of creating software and the joy of solving problems.</p>
+          </article>
+          <article class="thought-card">
+            <time>December 2025</time>
+            <h2>Design Systems</h2>
+            <p>Why consistency matters and how to build maintainable design systems.</p>
+          </article>
+          <article class="thought-card">
+            <time>November 2025</time>
+            <h2>Learning in Public</h2>
+            <p>The benefits of sharing your journey and learning from others.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Projects Page -->
+    <section id="page-projects" class="page" data-title="Projects">
+      <div class="page-content">
+        <a href="#/" class="back-link">&larr; Back</a>
+        <h1 class="page-header">Projects</h1>
+        <div class="projects-grid">
+          <article class="project-card">
+            <h2>Project One</h2>
+            <p>A brief description of this amazing project and what it does.</p>
+            <div class="project-tags">
+              <span>JavaScript</span>
+              <span>Canvas</span>
+            </div>
+          </article>
+          <article class="project-card">
+            <h2>Project Two</h2>
+            <p>Another cool project with interesting features and capabilities.</p>
+            <div class="project-tags">
+              <span>TypeScript</span>
+              <span>React</span>
+            </div>
+          </article>
+          <article class="project-card">
+            <h2>Project Three</h2>
+            <p>Something creative that showcases different skills and technologies.</p>
+            <div class="project-tags">
+              <span>Node.js</span>
+              <span>API</span>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- About Page -->
+    <section id="page-about" class="page" data-title="About">
+      <div class="page-content">
+        <a href="#/" class="back-link">&larr; Back</a>
+        <h1 class="page-header">About</h1>
+        <div class="about-content">
+          <p class="about-intro">
+            Hello! I'm a developer passionate about creating beautiful and functional web experiences.
+          </p>
+          <p>
+            I specialize in front-end development with a keen eye for design and user experience.
+            When I'm not coding, you can find me exploring new technologies or working on side projects.
+          </p>
+          <div class="about-links">
+            <a href="https://github.com" target="_blank" rel="noopener">GitHub</a>
+            <a href="https://twitter.com" target="_blank" rel="noopener">Twitter</a>
+            <a href="mailto:hello@example.com">Email</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
