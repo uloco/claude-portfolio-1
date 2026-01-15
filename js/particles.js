@@ -6,7 +6,9 @@ export class ParticleSystem {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
     this.particles = [];
-    this.particleCount = 600; // More particles for readable text
+    this.particleCount = 800; // Main particles for text
+    this.backgroundParticles = []; // Separate light particles for background
+    this.backgroundParticleCount = 150;
     this.isAnimatingToText = false;
     this.isBreathing = false;
     this.animationFrame = null;
@@ -29,6 +31,11 @@ export class ParticleSystem {
     this.particles = [];
     for (let i = 0; i < this.particleCount; i++) {
       this.particles.push(this.createParticle());
+    }
+    // Create separate background particles (always floating, light gray)
+    this.backgroundParticles = [];
+    for (let i = 0; i < this.backgroundParticleCount; i++) {
+      this.backgroundParticles.push(this.createParticle());
     }
   }
 
@@ -86,7 +93,21 @@ export class ParticleSystem {
 
     const style = getComputedStyle(document.documentElement);
     const particleColor = style.getPropertyValue('--particle-color').trim() || 'rgba(255, 255, 255, 0.6)';
+    const isDark = !document.documentElement.getAttribute('data-theme') ||
+                   document.documentElement.getAttribute('data-theme') === 'dark';
 
+    // Draw background particles first (light gray, always floating)
+    for (const p of this.backgroundParticles) {
+      this.ctx.beginPath();
+      this.ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      // Light gray for background particles
+      this.ctx.fillStyle = isDark
+        ? `rgba(255, 255, 255, ${p.opacity * 0.3})`
+        : `rgba(0, 0, 0, ${p.opacity * 0.25})`;
+      this.ctx.fill();
+    }
+
+    // Draw main particles (for text or floating)
     for (const p of this.particles) {
       this.ctx.beginPath();
       this.ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
@@ -100,12 +121,41 @@ export class ParticleSystem {
     const deltaTime = currentTime - this.lastTime;
     this.lastTime = currentTime;
 
+    // Update main particles
     for (const p of this.particles) {
       this.updateParticle(p, deltaTime);
     }
 
+    // Background particles always float (never form text)
+    for (const p of this.backgroundParticles) {
+      this.updateBackgroundParticle(p, deltaTime);
+    }
+
     this.draw();
     this.animationFrame = requestAnimationFrame((t) => this.animate(t));
+  }
+
+  updateBackgroundParticle(p, deltaTime) {
+    p.noiseOffsetX += deltaTime * 0.001;
+    p.noiseOffsetY += deltaTime * 0.001;
+
+    p.vx += this.noise(p.noiseOffsetX) * 0.01;
+    p.vy += this.noise(p.noiseOffsetY) * 0.01;
+
+    p.vx *= 0.99;
+    p.vy *= 0.99;
+
+    const maxVel = 0.4;
+    p.vx = Math.max(-maxVel, Math.min(maxVel, p.vx));
+    p.vy = Math.max(-maxVel, Math.min(maxVel, p.vy));
+
+    p.x += p.vx;
+    p.y += p.vy;
+
+    if (p.x < -10) p.x = this.width + 10;
+    if (p.x > this.width + 10) p.x = -10;
+    if (p.y < -10) p.y = this.height + 10;
+    if (p.y > this.height + 10) p.y = -10;
   }
 
   // Get text pixel positions from offscreen canvas
@@ -157,9 +207,9 @@ export class ParticleSystem {
     if (!text || this.isAnimatingToText) return Promise.resolve();
 
     this.isAnimatingToText = true;
-    const { positions } = this.getTextPositions(text);
+    let { positions } = this.getTextPositions(text);
 
-    // Ensure we have enough particles
+    // Ensure we have enough particles for the text
     while (this.particles.length < positions.length) {
       this.particles.push(this.createParticle(
         Math.random() * this.width,
@@ -167,7 +217,7 @@ export class ParticleSystem {
       ));
     }
 
-    // Shuffle positions for more organic look
+    // Shuffle positions for organic look
     for (let i = positions.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [positions[i], positions[j]] = [positions[j], positions[i]];
@@ -178,7 +228,7 @@ export class ParticleSystem {
         onComplete: resolve
       });
 
-      // Animate particles to form text
+      // All main particles form text
       for (let i = 0; i < this.particles.length; i++) {
         const p = this.particles[i];
 
@@ -187,7 +237,6 @@ export class ParticleSystem {
           p.targetX = targetX + target.x;
           p.targetY = targetY + target.y;
 
-          // Stagger slightly for wave effect
           const delay = Math.random() * 0.2;
 
           timeline.to(p, {
@@ -199,10 +248,11 @@ export class ParticleSystem {
             ease: 'power3.out',
           }, delay);
         } else {
-          // Extra particles drift to edges and fade
+          // Extra particles fade out (background particles handle the floating)
+          p.targetX = null;
           timeline.to(p, {
-            opacity: 0.1,
-            duration: 0.8,
+            opacity: 0,
+            duration: 0.5,
             ease: 'power2.out',
           }, 0);
         }
