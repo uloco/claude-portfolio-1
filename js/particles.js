@@ -6,8 +6,9 @@ export class ParticleSystem {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
     this.particles = [];
-    this.particleCount = 150;
+    this.particleCount = 600; // More particles for readable text
     this.isAnimatingToText = false;
+    this.isBreathing = false;
     this.animationFrame = null;
 
     this.resize();
@@ -35,21 +36,17 @@ export class ParticleSystem {
     return {
       x: x ?? Math.random() * this.width,
       y: y ?? Math.random() * this.height,
-      baseX: 0,
-      baseY: 0,
       targetX: null,
       targetY: null,
       vx: (Math.random() - 0.5) * 0.3,
       vy: (Math.random() - 0.5) * 0.3,
       size: Math.random() * 2 + 1,
       opacity: Math.random() * 0.5 + 0.3,
-      // For Brownian motion
       noiseOffsetX: Math.random() * 1000,
       noiseOffsetY: Math.random() * 1000,
     };
   }
 
-  // Simple noise function for organic movement
   noise(x) {
     const sin1 = Math.sin(x * 0.01) * 0.5;
     const sin2 = Math.sin(x * 0.02 + 1.3) * 0.3;
@@ -59,32 +56,25 @@ export class ParticleSystem {
 
   updateParticle(p, deltaTime) {
     if (this.isAnimatingToText && p.targetX !== null) {
-      // GSAP handles the animation to target
-      return;
+      return; // GSAP handles this
     }
 
-    // Brownian motion - gentle random movement
     p.noiseOffsetX += deltaTime * 0.001;
     p.noiseOffsetY += deltaTime * 0.001;
 
-    // Add subtle noise-based acceleration
     p.vx += this.noise(p.noiseOffsetX) * 0.01;
     p.vy += this.noise(p.noiseOffsetY) * 0.01;
 
-    // Damping to keep velocities small
     p.vx *= 0.99;
     p.vy *= 0.99;
 
-    // Clamp velocity
     const maxVel = 0.5;
     p.vx = Math.max(-maxVel, Math.min(maxVel, p.vx));
     p.vy = Math.max(-maxVel, Math.min(maxVel, p.vy));
 
-    // Update position
     p.x += p.vx;
     p.y += p.vy;
 
-    // Wrap around edges
     if (p.x < -10) p.x = this.width + 10;
     if (p.x > this.width + 10) p.x = -10;
     if (p.y < -10) p.y = this.height + 10;
@@ -94,7 +84,6 @@ export class ParticleSystem {
   draw() {
     this.ctx.clearRect(0, 0, this.width, this.height);
 
-    // Get current theme color
     const style = getComputedStyle(document.documentElement);
     const particleColor = style.getPropertyValue('--particle-color').trim() || 'rgba(255, 255, 255, 0.6)';
 
@@ -120,34 +109,38 @@ export class ParticleSystem {
   }
 
   // Get text pixel positions from offscreen canvas
-  getTextPositions(text, fontSize = 120) {
+  getTextPositions(text) {
     const offscreen = document.createElement('canvas');
     const offCtx = offscreen.getContext('2d');
 
-    // Size the canvas to fit the text
+    // Responsive font size
+    const fontSize = Math.min(this.width * 0.12, 100);
+
     offCtx.font = `bold ${fontSize}px -apple-system, BlinkMacSystemFont, sans-serif`;
     const metrics = offCtx.measureText(text);
     const textWidth = metrics.width;
-    const textHeight = fontSize;
+    const textHeight = fontSize * 1.2;
 
-    offscreen.width = textWidth + 40;
-    offscreen.height = textHeight + 40;
+    offscreen.width = Math.ceil(textWidth + 40);
+    offscreen.height = Math.ceil(textHeight + 40);
 
-    // Draw text
+    // Redraw with correct canvas size
     offCtx.font = `bold ${fontSize}px -apple-system, BlinkMacSystemFont, sans-serif`;
     offCtx.fillStyle = 'white';
-    offCtx.textBaseline = 'top';
-    offCtx.fillText(text, 20, 20);
+    offCtx.textBaseline = 'middle';
+    offCtx.textAlign = 'center';
+    offCtx.fillText(text, offscreen.width / 2, offscreen.height / 2);
 
-    // Sample pixels
+    // Sample pixels - adjust gap based on particle count
     const imageData = offCtx.getImageData(0, 0, offscreen.width, offscreen.height);
     const positions = [];
-    const gap = 4; // Sample every 4 pixels
 
+    // First pass: count available positions with gap of 3
+    let gap = 3;
     for (let y = 0; y < offscreen.height; y += gap) {
       for (let x = 0; x < offscreen.width; x += gap) {
         const i = (y * offscreen.width + x) * 4;
-        if (imageData.data[i + 3] > 128) { // If pixel is visible
+        if (imageData.data[i + 3] > 128) {
           positions.push({
             x: x - offscreen.width / 2,
             y: y - offscreen.height / 2
@@ -156,91 +149,137 @@ export class ParticleSystem {
       }
     }
 
-    return positions;
+    return { positions, canvasWidth: offscreen.width, canvasHeight: offscreen.height };
   }
 
-  // Animate particles to form text
-  animateToText(text, onComplete) {
-    if (!text || this.isAnimatingToText) return;
+  // Animate particles to form text at a specific position
+  animateToText(text, targetX, targetY) {
+    if (!text || this.isAnimatingToText) return Promise.resolve();
 
     this.isAnimatingToText = true;
-    const positions = this.getTextPositions(text);
-
-    // Center position
-    const centerX = this.width / 2;
-    const centerY = this.height / 2;
+    const { positions } = this.getTextPositions(text);
 
     // Ensure we have enough particles
     while (this.particles.length < positions.length) {
-      this.particles.push(this.createParticle());
+      this.particles.push(this.createParticle(
+        Math.random() * this.width,
+        Math.random() * this.height
+      ));
     }
 
-    // Assign targets to particles
-    const timeline = gsap.timeline({
-      onComplete: () => {
-        if (onComplete) onComplete();
+    // Shuffle positions for more organic look
+    for (let i = positions.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [positions[i], positions[j]] = [positions[j], positions[i]];
+    }
+
+    return new Promise((resolve) => {
+      const timeline = gsap.timeline({
+        onComplete: resolve
+      });
+
+      // Animate particles to form text
+      for (let i = 0; i < this.particles.length; i++) {
+        const p = this.particles[i];
+
+        if (i < positions.length) {
+          const target = positions[i];
+          p.targetX = targetX + target.x;
+          p.targetY = targetY + target.y;
+
+          // Stagger slightly for wave effect
+          const delay = Math.random() * 0.2;
+
+          timeline.to(p, {
+            x: p.targetX,
+            y: p.targetY,
+            size: 2,
+            opacity: 0.9,
+            duration: 1,
+            ease: 'power3.out',
+          }, delay);
+        } else {
+          // Extra particles drift to edges and fade
+          timeline.to(p, {
+            opacity: 0.1,
+            duration: 0.8,
+            ease: 'power2.out',
+          }, 0);
+        }
       }
     });
+  }
 
-    // Animate particles to text positions
-    for (let i = 0; i < this.particles.length; i++) {
-      const p = this.particles[i];
+  // Gentle breathing animation while holding text shape
+  startBreathing() {
+    this.isBreathing = true;
 
-      if (i < positions.length) {
-        const target = positions[i];
-        p.targetX = centerX + target.x;
-        p.targetY = centerY + target.y;
+    for (const p of this.particles) {
+      if (p.targetX !== null) {
+        // Store the target position
+        p.breatheBaseX = p.targetX;
+        p.breatheBaseY = p.targetY;
 
-        timeline.to(p, {
-          x: p.targetX,
-          y: p.targetY,
-          duration: 0.8,
-          ease: 'power2.out',
-        }, 0);
-      } else {
-        // Extra particles fade and move to edges
-        timeline.to(p, {
-          opacity: 0.1,
-          x: Math.random() > 0.5 ? -50 : this.width + 50,
-          duration: 0.8,
-          ease: 'power2.out',
-        }, 0);
+        // Animate gentle floating around the target
+        this.animateBreathing(p);
       }
     }
+  }
 
-    return timeline;
+  animateBreathing(p) {
+    if (!this.isBreathing || p.targetX === null) return;
+
+    const offsetX = (Math.random() - 0.5) * 6;
+    const offsetY = (Math.random() - 0.5) * 6;
+
+    gsap.to(p, {
+      x: p.breatheBaseX + offsetX,
+      y: p.breatheBaseY + offsetY,
+      duration: 2 + Math.random() * 2,
+      ease: 'sine.inOut',
+      onComplete: () => this.animateBreathing(p)
+    });
+  }
+
+  stopBreathing() {
+    this.isBreathing = false;
+    // Kill all breathing tweens
+    for (const p of this.particles) {
+      gsap.killTweensOf(p);
+    }
   }
 
   // Disperse particles back to random floating
-  disperseParticles(onComplete) {
-    const timeline = gsap.timeline({
-      onComplete: () => {
-        this.isAnimatingToText = false;
-        // Reset targets and restore opacity
-        for (const p of this.particles) {
-          p.targetX = null;
-          p.targetY = null;
-          p.vx = (Math.random() - 0.5) * 0.3;
-          p.vy = (Math.random() - 0.5) * 0.3;
+  disperseParticles() {
+    this.stopBreathing();
+    return new Promise((resolve) => {
+      const timeline = gsap.timeline({
+        onComplete: () => {
+          this.isAnimatingToText = false;
+          for (const p of this.particles) {
+            p.targetX = null;
+            p.targetY = null;
+            p.vx = (Math.random() - 0.5) * 0.3;
+            p.vy = (Math.random() - 0.5) * 0.3;
+          }
+          resolve();
         }
-        if (onComplete) onComplete();
+      });
+
+      for (const p of this.particles) {
+        const randomX = Math.random() * this.width;
+        const randomY = Math.random() * this.height;
+
+        timeline.to(p, {
+          x: randomX,
+          y: randomY,
+          size: Math.random() * 2 + 1,
+          opacity: Math.random() * 0.5 + 0.3,
+          duration: 0.8,
+          ease: 'power2.inOut',
+        }, Math.random() * 0.2);
       }
     });
-
-    for (const p of this.particles) {
-      const randomX = Math.random() * this.width;
-      const randomY = Math.random() * this.height;
-
-      timeline.to(p, {
-        x: randomX,
-        y: randomY,
-        opacity: Math.random() * 0.5 + 0.3,
-        duration: 0.6,
-        ease: 'power2.inOut',
-      }, 0);
-    }
-
-    return timeline;
   }
 
   destroy() {

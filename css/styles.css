@@ -112,10 +112,21 @@ body {
   justify-content: center;
 }
 
+/* Sub-pages (not home) - align to top */
+.page.active:not(#page-home) {
+  align-items: flex-start;
+  padding-top: 15vh;
+}
+
 .page-content {
   max-width: 800px;
   width: 100%;
   opacity: 1;
+}
+
+/* Page body - content below header */
+.page-body {
+  margin-top: 1rem;
 }
 
 /* Home Page */
@@ -186,12 +197,14 @@ body {
   color: var(--text);
 }
 
-/* Page Headers */
+/* Page Headers - hidden, particles form the header */
 .page-header {
   font-size: clamp(2rem, 6vw, 3.5rem);
   font-weight: 700;
   margin-bottom: 2rem;
   letter-spacing: -0.02em;
+  visibility: hidden; /* Takes up space but invisible - particles show here */
+  height: 1.2em;
 }
 
 /* Thoughts Page */

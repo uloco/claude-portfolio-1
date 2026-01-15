@@ -14,20 +14,14 @@ export class PageTransitions {
     const toEl = document.getElementById(`page-${toPage}`);
     const pageTitle = toEl?.dataset.title || '';
 
-    // Get content elements
     const fromContent = fromEl?.querySelector('.page-content');
     const toContent = toEl?.querySelector('.page-content');
+    const toHeader = toEl?.querySelector('.page-header');
+    const toBody = toEl?.querySelector('.page-body');
 
-    // Create master timeline
-    const tl = gsap.timeline({
-      onComplete: () => {
-        this.isTransitioning = false;
-      }
-    });
-
-    // Phase 1: Fade out current page content
+    // Phase 1: Fade out current page
     if (fromContent) {
-      tl.to(fromContent, {
+      await gsap.to(fromContent, {
         opacity: 0,
         y: -20,
         duration: 0.3,
@@ -35,47 +29,64 @@ export class PageTransitions {
       });
     }
 
-    // Phase 2: If there's a page title, morph particles to form it
-    if (pageTitle) {
-      tl.add(() => {
-        return this.particles.animateToText(pageTitle);
-      });
+    // Hide current page, show new page (but content hidden)
+    if (fromEl) fromEl.classList.remove('active');
+    if (toEl) toEl.classList.add('active');
 
-      // Hold the text formation briefly
-      tl.add(() => {}, '+=0.5');
-
-      // Phase 3: Disperse particles
-      tl.add(() => {
-        return this.particles.disperseParticles();
-      });
+    // Hide the text header initially - particles will be the header
+    if (toHeader) {
+      gsap.set(toHeader, { opacity: 0 });
     }
-
-    // Phase 4: Switch pages and fade in new content
-    tl.add(() => {
-      if (fromEl) {
-        fromEl.classList.remove('active');
-      }
-      if (toEl) {
-        toEl.classList.add('active');
-      }
-    });
-
+    if (toBody) {
+      gsap.set(toBody, { opacity: 0, y: 20 });
+    }
     if (toContent) {
-      // Reset position for animation
-      gsap.set(toContent, { opacity: 0, y: 20 });
-
-      tl.to(toContent, {
-        opacity: 1,
-        y: 0,
-        duration: 0.4,
-        ease: 'power2.out',
-      });
+      gsap.set(toContent, { opacity: 1 }); // Container visible
     }
 
-    return tl;
+    // Phase 2: Form text with particles at header position
+    if (pageTitle && toHeader) {
+      // Wait a frame for layout to settle
+      await new Promise(resolve => requestAnimationFrame(resolve));
+
+      // Get actual header position
+      const headerRect = toHeader.getBoundingClientRect();
+      const targetX = headerRect.left + headerRect.width / 2;
+      const targetY = headerRect.top + headerRect.height / 2;
+
+      await this.particles.animateToText(pageTitle, targetX, targetY);
+
+      // Particles stay as header - start gentle breathing animation
+      this.particles.startBreathing();
+
+      // Fade in the body content
+      if (toBody) {
+        await gsap.to(toBody, {
+          opacity: 1,
+          y: 0,
+          duration: 0.5,
+          ease: 'power2.out',
+        });
+      }
+
+      // Keep text header hidden - particles ARE the header now
+    } else {
+      // No title - just fade in content
+      if (toContent) {
+        gsap.set(toContent, { opacity: 0, y: 20 });
+        await gsap.to(toContent, {
+          opacity: 1,
+          y: 0,
+          duration: 0.4,
+          ease: 'power2.out',
+        });
+      }
+    }
+
+    this.isTransitioning = false;
   }
 
-  // Quick transition without particle text (for going back home)
+  // Quick transition for going back home
   async quickTransition(fromPage, toPage) {
     if (this.isTransitioning) return;
     this.isTransitioning = true;
@@ -86,36 +97,31 @@ export class PageTransitions {
     const fromContent = fromEl?.querySelector('.page-content');
     const toContent = toEl?.querySelector('.page-content');
 
-    const tl = gsap.timeline({
-      onComplete: () => {
-        this.isTransitioning = false;
-      }
-    });
+    // Disperse particles back to floating
+    this.particles.disperseParticles();
 
     if (fromContent) {
-      tl.to(fromContent, {
+      await gsap.to(fromContent, {
         opacity: 0,
         y: -20,
-        duration: 0.25,
+        duration: 0.3,
         ease: 'power2.in',
       });
     }
 
-    tl.add(() => {
-      if (fromEl) fromEl.classList.remove('active');
-      if (toEl) toEl.classList.add('active');
-    });
+    if (fromEl) fromEl.classList.remove('active');
+    if (toEl) toEl.classList.add('active');
 
     if (toContent) {
       gsap.set(toContent, { opacity: 0, y: 20 });
-      tl.to(toContent, {
+      await gsap.to(toContent, {
         opacity: 1,
         y: 0,
-        duration: 0.3,
+        duration: 0.4,
         ease: 'power2.out',
       });
     }
 
-    return tl;
+    this.isTransitioning = false;
   }
 }
